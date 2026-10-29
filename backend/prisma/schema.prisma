@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "./ERD/ERD.svg"
+  format   = "svg"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model blog_folders {
+  blog_fid    Bytes                @id @db.Binary(16)
+  id_prefix   String               @default("BFD") @db.Char(3)
+  user_id     Bytes                @db.Binary(16)
+  name        String               @db.VarChar(100)
+  description String?              @db.Text
+  status      blog_folders_status? @default(public)
+  created_at  DateTime?            @default(now()) @db.DateTime(0)
+  updated_at  DateTime?            @default(now()) @db.DateTime(0)
+  users       users                @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "blog_folders_ibfk_1")
+  blogs       blogs[]
+
+  @@index([user_id], map: "idx_blogfolders_user")
+}
+
+model blogs {
+  blog_id      Bytes         @id @db.Binary(16)
+  id_prefix    String        @default("BLG") @db.Char(3)
+  blog_fid     Bytes         @db.Binary(16)
+  title        String        @db.VarChar(150)
+  content      String?       @db.LongText
+  status       blogs_status? @default(public)
+  created_at   DateTime?     @default(now()) @db.DateTime(0)
+  updated_at   DateTime?     @default(now()) @db.DateTime(0)
+  blog_folders blog_folders  @relation(fields: [blog_fid], references: [blog_fid], onDelete: Cascade, onUpdate: NoAction, map: "blogs_ibfk_1")
+
+  @@index([blog_fid], map: "idx_blogs_folder")
+}
+
+model projects {
+  proj_id              Bytes            @id @db.Binary(16)
+  id_prefix            String           @default("PRJ") @db.Char(3)
+  proj_fid             Bytes            @db.Binary(16)
+  name                 String           @db.VarChar(150)
+  description          String?          @db.Text
+  programming_language String?          @db.VarChar(50)
+  link                 String?          @db.VarChar(255)
+  status               projects_status? @default(public)
+  created_at           DateTime?        @default(now()) @db.DateTime(0)
+  updated_at           DateTime?        @default(now()) @db.DateTime(0)
+  proj_folders         proj_folders     @relation(fields: [proj_fid], references: [proj_fid], onDelete: Cascade, onUpdate: NoAction, map: "projects_ibfk_1")
+
+  @@index([proj_fid], map: "idx_projects_folder")
+}
+
+model repositories {
+  repo_id              Bytes                @id @db.Binary(16)
+  id_prefix            String               @default("REP") @db.Char(3)
+  repo_fid             Bytes                @db.Binary(16)
+  name                 String               @db.VarChar(150)
+  description          String?              @db.Text
+  programming_language String?              @db.VarChar(50)
+  link                 String?              @db.VarChar(255)
+  status               repositories_status? @default(public)
+  created_at           DateTime?            @default(now()) @db.DateTime(0)
+  updated_at           DateTime?            @default(now()) @db.DateTime(0)
+  repo_folders         repo_folders         @relation(fields: [repo_fid], references: [repo_fid], onDelete: Cascade, onUpdate: NoAction, map: "repositories_ibfk_1")
+
+  @@index([repo_fid], map: "idx_repositories_folder")
+}
+
+model roles {
+  role_id   Bytes  @id @db.Binary(16)
+  id_prefix String @default("ROL") @db.Char(3)
+  rolename  String @unique(map: "rolename") @db.VarChar(50)
+  accs      accs[]
+}
+
+model user_links {
+  link_id    Bytes     @id @db.Binary(16)
+  id_prefix  String    @default("LNK") @db.Char(3)
+  user_id    Bytes     @db.Binary(16)
+  platform   String    @db.VarChar(50)
+  url        String    @db.VarChar(2048)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+  users      users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "user_links_ibfk_1")
+
+  @@unique([user_id, platform], map: "uq_user_platform")
+  @@index([user_id], map: "idx_userlinks_user")
+}
+
+model users {
+  user_id                             Bytes          @id @db.Binary(16)
+  id_prefix                           String         @default("USR") @db.Char(3)
+  acc_id                              Bytes          @unique(map: "acc_id") @db.Binary(16)
+  fullname                            String?        @db.VarChar(100)
+  bio                                 String?        @db.Text
+  gender                              users_gender?
+  birthday                            DateTime?      @db.Date
+  phone                               String?        @db.VarChar(20)
+  created_at                          DateTime?      @default(now()) @db.DateTime(0)
+  updated_at                          DateTime?      @default(now()) @updatedAt @db.DateTime(0)
+  blog_folders                        blog_folders[]
+  follows_follows_follower_idTousers  follows[]      @relation("follows_follower_idTousers")
+  follows_follows_following_idTousers follows[]      @relation("follows_following_idTousers")
+  proj_folders                        proj_folders[]
+  repo_folders                        repo_folders[]
+  user_links                          user_links[]
+  accs                                accs           @relation(fields: [acc_id], references: [acc_id], onDelete: Cascade, onUpdate: NoAction, map: "users_ibfk_1")
+
+  @@index([acc_id], map: "idx_users_acc_id")
+  @@map("users")
+}
+
+model accs {
+  acc_id        Bytes     @id @db.Binary(16)
+  id_prefix     String    @default("ACC") @db.Char(3)
+  email         String    @unique(map: "email") @db.VarChar(100)
+  username      String    @unique(map: "username") @db.VarChar(50)
+  password_hash String    @db.VarChar(255)
+  role_id       Bytes     @db.Binary(16)
+  created_at    DateTime? @default(now()) @db.DateTime(0)
+  updated_at    DateTime? @default(now()) @db.DateTime(0)
+  roles         roles     @relation(fields: [role_id], references: [role_id], onUpdate: NoAction, map: "accs_ibfk_1")
+  users         users?
+
+  @@index([email], map: "idx_accs_email")
+  @@index([username], map: "idx_accs_username")
+  @@index([role_id], map: "role_id")
+}
+
+model entity_tags {
+  entity_id Bytes @db.Binary(16)
+  tag_id    Bytes @db.Binary(16)
+  tags      tags  @relation(fields: [tag_id], references: [tag_id], onDelete: Cascade, onUpdate: NoAction, map: "entity_tags_ibfk_1")
+
+  @@id([entity_id, tag_id])
+  @@index([tag_id], map: "tag_id")
+}
+
+model follows {
+  follow_id                         Bytes     @id @db.Binary(16)
+  id_prefix                         String    @default("FLW") @db.Char(3)
+  follower_id                       Bytes     @db.Binary(16)
+  following_id                      Bytes     @db.Binary(16)
+  created_at                        DateTime? @default(now()) @db.DateTime(0)
+  users_follows_follower_idTousers  users     @relation("follows_follower_idTousers", fields: [follower_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "follows_ibfk_1")
+  users_follows_following_idTousers users     @relation("follows_following_idTousers", fields: [following_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "follows_ibfk_2")
+
+  @@unique([follower_id, following_id], map: "uq_follow")
+  @@index([follower_id], map: "idx_follows_follower")
+  @@index([following_id], map: "idx_follows_following")
+}
+
+model proj_folders {
+  proj_fid    Bytes                @id @db.Binary(16)
+  id_prefix   String               @default("PFD") @db.Char(3)
+  user_id     Bytes                @db.Binary(16)
+  name        String               @db.VarChar(100)
+  description String?              @db.Text
+  status      proj_folders_status? @default(public)
+  created_at  DateTime?            @default(now()) @db.DateTime(0)
+  updated_at  DateTime?            @default(now()) @db.DateTime(0)
+  users       users                @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "proj_folders_ibfk_1")
+  projects    projects[]
+
+  @@index([user_id], map: "idx_projfolders_user")
+}
+
+model repo_folders {
+  repo_fid     Bytes                @id @db.Binary(16)
+  id_prefix    String               @default("RFD") @db.Char(3)
+  user_id      Bytes                @db.Binary(16)
+  name         String               @db.VarChar(100)
+  description  String?              @db.Text
+  status       repo_folders_status? @default(public)
+  created_at   DateTime?            @default(now()) @db.DateTime(0)
+  updated_at   DateTime?            @default(now()) @db.DateTime(0)
+  users        users                @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "repo_folders_ibfk_1")
+  repositories repositories[]
+
+  @@index([user_id], map: "idx_repofolders_user")
+}
+
+model tags {
+  tag_id      Bytes         @id @db.Binary(16)
+  id_prefix   String        @default("TAG") @db.Char(3)
+  tag_name    String        @unique(map: "tag_name") @db.VarChar(100)
+  entity_tags entity_tags[]
+}
+
+enum blogs_status {
+  public
+  private
+}
+
+enum blog_folders_status {
+  public
+  private
+}
+
+enum projects_status {
+  public
+  private
+}
+
+enum repositories_status {
+  public
+  private
+}
+
+enum proj_folders_status {
+  public
+  private
+}
+
+enum repo_folders_status {
+  public
+  private
+}
+
+enum users_gender {
+  male
+  female
+  other
+}
